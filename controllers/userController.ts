@@ -4,6 +4,8 @@ import { validatePassword } from '../models/user';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken'; // Fixed typo (it's `jsonwebtoken`, not `sendwebtoken`)
 import formatValidationError from '../errors/validation'; // Ensure correct import
+import User from '../models/user';
+import Release from '../models/release';
 
 export const signUp = async (req: Request, res: Response) => {
     try {
@@ -108,13 +110,48 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export async function getCurrentUser(req: Request, res: Response) {
-    console.log("res: ", req.currentUser);
     try {
-      res.status(200).send(req.currentUser);
+        if (!req.currentUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(200).json(req.currentUser);
     } catch (error) {
-      console.log(error);
-      res
-        .status(500)
-        .send({ message: "There was an error, please try again later." });
+        console.error("Error fetching current user:", error);
+        res.status(500).json({ message: "Internal server error." });
     }
-  }
+}
+
+export const getUserProfile = async (req: Request, res: Response) => {
+    try {
+      const userId = req.params.userId;
+  
+      // Fetch user by ID
+      const user = await User.findById(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      // Fetch releases by the user's ID
+      const uploads = await Release.find({ user: user._id });
+  
+      // Return user data along with uploads
+      res.json({ user, uploads });
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error });
+    }
+  };
+
+  export const getUserUploads = async (req: Request, res: Response) => {
+    const { userId } = req.params;
+  
+    try {
+      // Fetch uploads for the user
+      const uploads = await Release.find({ user: userId }).populate('user', 'username email');
+  
+      return res.json(uploads);
+    } catch (error) {
+      console.error('Error fetching uploads:', error);
+      return res.status(500).json({ message: 'Error fetching uploads.' });
+    }
+  };

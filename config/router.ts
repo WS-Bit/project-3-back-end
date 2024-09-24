@@ -21,7 +21,9 @@ import {
 import { 
   signUp, 
   login, 
-  getCurrentUser 
+  getCurrentUser, 
+  getUserProfile,
+  getUserUploads
 } from '../controllers/userController';
 import secureRoute from '../middleware/secureRoute';
 import sanitizeRoute from '../middleware/sanitizeRoute';
@@ -29,9 +31,12 @@ import sanitizeRoute from '../middleware/sanitizeRoute';
 const router = express.Router();
 
 // User routes
-router.route('/signup').post(signUp);
-router.route('/login').post(login);
-router.route('/user').get(secureRoute, getCurrentUser);
+router.post('/signup', signUp); 
+router.post('/login', login); 
+router.get('/user', secureRoute, getCurrentUser); 
+router.get('/user/:userId/profile', secureRoute, getUserProfile);
+router.get('/user/:userId/uploads', secureRoute, getUserUploads);
+
 
 // Release routes
 router.route('/releases')
