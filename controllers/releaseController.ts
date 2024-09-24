@@ -24,7 +24,14 @@ export const getReleaseById = async (req: Request, res: Response) => {
   try {
     const release = await Release.findById(req.params.releaseId)
       .populate('artist')
-      .populate('user', '_id username');
+      .populate('user', '_id username')
+      .populate({
+        path: 'reviews',
+        populate: {
+          path: 'user',
+          select: '_id username'
+        }
+      });
 
     if (!release) {
       return res.status(404).json({ message: 'Release not found' });

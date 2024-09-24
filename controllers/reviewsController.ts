@@ -15,8 +15,18 @@ export async function createReview(req: Request, res: Response) {
 
         const updatedRelease = await release.save();
 
-        return res.status(201).json(updatedRelease);
+        // Populate the user field of the newly added review
+        const populatedRelease = await Release.populate(updatedRelease, {
+            path: 'reviews.user',
+            select: '_id username'
+        });
+
+        // Get the newly added review (it's the last one in the array)
+        const addedReview = populatedRelease.reviews[populatedRelease.reviews.length - 1];
+
+        return res.status(201).json(addedReview);
     } catch (error) {
+        console.error('Error creating review:', error);
         return res.status(500).json({ message: "Internal server error", error });
     }
 }
