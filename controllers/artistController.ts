@@ -8,7 +8,6 @@ import formatValidationError from '../errors/validation';
 export const indexArtists = async (req: Request, res: Response) => {
   try {
     const artists = await Artist.find().populate('releases');
-    console.log('Obtained these from db:', artists);
     res.status(200).json(artists);
   } catch (error) {
     console.error('Error fetching artists:', error);
