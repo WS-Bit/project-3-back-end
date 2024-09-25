@@ -23,7 +23,10 @@ import {
   login, 
   getCurrentUser, 
   getUserProfile,
-  getUserUploads
+  getUserUploads,
+  getUserFavourites,
+  addToFavourites,
+  removeFromFavourites
 } from '../controllers/userController';
 import secureRoute from '../middleware/secureRoute';
 import sanitizeRoute from '../middleware/sanitizeRoute';
@@ -36,6 +39,9 @@ router.post('/login', login);
 router.get('/user', secureRoute, getCurrentUser); 
 router.get('/user/:userId/profile', secureRoute, getUserProfile);
 router.get('/user/:userId/uploads', secureRoute, getUserUploads);
+router.get('/user/:userId/favourites', secureRoute, getUserFavourites);
+router.post('/user/:userId/favourites/:releaseId', secureRoute, addToFavourites);
+router.delete('/user/:userId/favourites/:releaseId', secureRoute, removeFromFavourites);
 
 
 // Release routes

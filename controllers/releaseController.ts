@@ -191,6 +191,9 @@ export const deleteRelease = async (req: Request, res: Response) => {
     res.status(200).json({ message: 'Release successfully deleted', release: deletedRelease });
   } catch (error) {
     console.error('Error deleting release:', error);
-    res.status(500).json({ message: 'An error occurred while deleting the release' });
+    if (error instanceof mongoose.Error) {
+      return res.status(500).json({ message: 'Database error', error: error.message });
+    }
+    res.status(500).json({ message: 'An error occurred while deleting the release'});
   }
 };

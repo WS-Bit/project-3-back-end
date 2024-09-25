@@ -9,7 +9,7 @@ interface IUser {
   email: string,
   password: string,
   uploads: mongoose.Types.ObjectId[],
-  favorites: mongoose.Types.ObjectId[],
+  favourites: mongoose.Types.ObjectId[],
 }
 
 const usersSchema: Schema<IUser> = new mongoose.Schema<IUser>({
@@ -32,7 +32,7 @@ const usersSchema: Schema<IUser> = new mongoose.Schema<IUser>({
     }),
   },
   uploads: [{ type: Schema.Types.ObjectId, ref: 'Release' }],
-  favorites: [{ type: Schema.Types.ObjectId, ref: 'Release' }],
+  favourites: [{ type: Schema.Types.ObjectId, ref: 'Release' }],
 }, {
   timestamps: true,
   toJSON: {
@@ -59,11 +59,6 @@ usersSchema.virtual('confirmPassword')
 
 
 usersSchema.index({ email: 1 }, { unique: true });
-
-usersSchema.pre('save', function hashPassword(next) {
-  this.password = bcrypt.hashSync(this.password, bcrypt.genSaltSync());
-  next();
-});
 
 export function validatePassword(plainTextPassword: string, hashPasswordFromDB: string): boolean {
   return bcrypt.compareSync(plainTextPassword, hashPasswordFromDB);
