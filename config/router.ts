@@ -26,7 +26,9 @@ import {
   getUserUploads,
   getUserFavourites,
   addToFavourites,
-  removeFromFavourites
+  removeFromFavourites,
+  forgotPassword,
+  resetPassword,
 } from '../controllers/userController';
 import secureRoute from '../middleware/secureRoute';
 import sanitizeRoute from '../middleware/sanitizeRoute';
@@ -36,6 +38,8 @@ const router = express.Router();
 // User routes
 router.post('/signup', signUp); 
 router.post('/login', login); 
+router.post('/forgot-password', forgotPassword)
+router.put('/reset-password/:resetToken', resetPassword )
 router.get('/user', secureRoute, getCurrentUser); 
 router.get('/user/:userId/profile', secureRoute, getUserProfile);
 router.get('/user/:userId/uploads', secureRoute, getUserUploads);

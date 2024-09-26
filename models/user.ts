@@ -1,15 +1,17 @@
 import mongoose from 'mongoose';
 import { Schema } from 'mongoose';
 import bcrypt from 'bcrypt';
-import validator from 'validator'
-import mongooseHidden from 'mongoose-hidden'
+import validator from 'validator';
+import mongooseHidden from 'mongoose-hidden';
 
 interface IUser {
-  username: string,
-  email: string,
-  password: string,
-  uploads: mongoose.Types.ObjectId[],
-  favourites: mongoose.Types.ObjectId[],
+  username: string;
+  email: string;
+  password: string;
+  uploads: mongoose.Types.ObjectId[];
+  favourites: mongoose.Types.ObjectId[];
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
 }
 
 const usersSchema: Schema<IUser> = new mongoose.Schema<IUser>({
@@ -33,11 +35,15 @@ const usersSchema: Schema<IUser> = new mongoose.Schema<IUser>({
   },
   uploads: [{ type: Schema.Types.ObjectId, ref: 'Release' }],
   favourites: [{ type: Schema.Types.ObjectId, ref: 'Release' }],
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
 }, {
   timestamps: true,
   toJSON: {
     transform: function(doc, ret) {
       delete ret.password;
+      delete ret.resetPasswordToken;
+      delete ret.resetPasswordExpires;
       return ret;
     }
   }
@@ -51,21 +57,29 @@ usersSchema.virtual('confirmPassword')
     this._confirmPassword = value;
   });
 
-  usersSchema.pre('save', function(next) {
-    if (!this.isModified('password')) return next(); // Only hash if password is modified
-    this.password = bcrypt.hashSync(this.password, bcrypt.genSaltSync());
+usersSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
     next();
+  } catch (error: any) {
+    next(error);
+  }
 });
 
+usersSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+export const validatePassword = (plainTextPassword: string, hashedPassword: string): boolean => {
+  return bcrypt.compareSync(plainTextPassword, hashedPassword);
+};
 
 usersSchema.index({ email: 1 }, { unique: true });
 
-export function validatePassword(plainTextPassword: string, hashPasswordFromDB: string): boolean {
-  return bcrypt.compareSync(plainTextPassword, hashPasswordFromDB);
-}
+usersSchema.plugin(mongooseHidden({ defaultHidden: { password: true, resetPasswordToken: true, resetPasswordExpires: true } }));
 
-usersSchema.plugin(mongooseHidden({ defaultHidden: {password: true}}))
-
-const User = mongoose.model('User', usersSchema);
+const User = mongoose.model<IUser>('User', usersSchema);
 
 export default User;

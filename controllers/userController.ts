@@ -1,4 +1,5 @@
 import Users from '../models/user'; // Correct import
+import { Document } from 'mongoose';
 import { Request, Response } from 'express';
 import { validatePassword } from '../models/user';
 import mongoose from 'mongoose';
@@ -7,6 +8,19 @@ import formatValidationError from '../errors/validation'; // Ensure correct impo
 import User from '../models/user';
 import Release from '../models/release';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+import sendEmail from '../utils/sendEmail';
+import validator from 'validator';
+
+type UserDocument = Document & {
+  username: string;
+  email: string;
+  password: string;
+  uploads: mongoose.Types.ObjectId[];
+  favourites: mongoose.Types.ObjectId[];
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
+}
 
 export const signUp = async (req: Request, res: Response) => {
     try {
@@ -253,5 +267,116 @@ export const getUserProfile = async (req: Request, res: Response) => {
     } catch (error) {
       console.error('Error fetching favourites:', error);
       return res.status(500).json({ message: 'Error fetching favourites.' });
+    }
+  };
+
+
+  export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { email } = req.body as { email: string };
+      const user = await User.findOne({ email }) as UserDocument | null;
+      
+      if (!user) {
+        res.status(404).json({ message: 'User not found' });
+        return;
+      }
+  
+      const resetToken = crypto.randomBytes(20).toString('hex');
+      user.resetPasswordToken = crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
+      user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  
+      await user.save();
+  
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+  
+      console.log('Reset URL:', resetUrl); // For debugging
+  
+      const templateId = process.env.SENDGRID_TEMPLATE_ID;
+  
+      try {
+        if (templateId) {
+          await sendEmail({
+            to: user.email,
+            subject: 'Password Reset Request',
+            templateId: templateId,
+            dynamicTemplateData: {
+              recipient_name: user.username,
+              reset_password_link: resetUrl
+            }
+          });
+        } else {
+          await sendEmail({
+            to: user.email,
+            subject: 'Password Reset Request',
+            text: `Hello ${user.username},\n\nYou requested a password reset. Please click on this link to reset your password: ${resetUrl}\n\nIf you didn't request this, please ignore this email.`,
+            html: `<p>Hello ${user.username},</p><p>You requested a password reset. Please click <a href="${resetUrl}">here</a> to reset your password.</p><p>If you didn't request this, please ignore this email.</p>`
+          });
+        }
+  
+        res.status(200).json({ message: 'Password reset email sent' });
+      } catch (error) {
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+  
+        console.error('Error sending email:', error);
+        res.status(500).json({ 
+          message: 'Email could not be sent', 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+      }
+    } catch (error) {
+      console.error('Error in forgotPassword:', error);
+      res.status(500).json({ 
+        message: 'Server error', 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  };
+
+  export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Get hashed token
+      const resetPasswordToken = crypto
+        .createHash('sha256')
+        .update(req.params.resetToken)
+        .digest('hex');
+  
+      const user = await User.findOne({
+        resetPasswordToken,
+        resetPasswordExpires: { $gt: new Date() },
+      });
+  
+      if (!user) {
+        res.status(400).json({ message: 'Password reset token is invalid or has expired' });
+        return;
+      }
+  
+      // Validate password
+      if (!req.body.password || !validator.isStrongPassword(req.body.password, {
+        minLength: 8,
+        minLowercase: 1,
+        minUppercase: 1,
+        minSymbols: 1,
+        minNumbers: 1
+      })) {
+        res.status(400).json({ message: 'Password does not meet strength requirements' });
+        return;
+      }
+  
+      // Set new password
+      user.password = req.body.password;
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save();
+  
+      res.status(200).json({ message: 'Password has been reset successfully' });
+    } catch (error) {
+      console.error('Error in resetPassword:', error);
+      res.status(500).json({ message: 'An error occurred while resetting the password' });
     }
   };
