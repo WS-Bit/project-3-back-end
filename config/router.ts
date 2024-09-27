@@ -29,6 +29,7 @@ import {
   removeFromFavourites,
   forgotPassword,
   resetPassword,
+  confirmEmail,
 } from '../controllers/userController';
 import secureRoute from '../middleware/secureRoute';
 import sanitizeRoute from '../middleware/sanitizeRoute';
@@ -37,6 +38,7 @@ const router = express.Router();
 
 // User routes
 router.post('/signup', signUp); 
+router.get('/confirm-email/:token', confirmEmail);
 router.post('/login', login); 
 router.post('/forgot-password', forgotPassword)
 router.put('/reset-password/:resetToken', resetPassword )

@@ -1,5 +1,6 @@
 import sgMail, { MailDataRequired } from '@sendgrid/mail';
 import { ResponseError } from '@sendgrid/helpers/classes';
+import crypto from 'crypto';
 
 interface EmailOptions {
   to: string;
@@ -8,6 +9,12 @@ interface EmailOptions {
   dynamicTemplateData?: Record<string, string>;
   text?: string;
   html?: string;
+}
+
+interface ConfirmationEmailOptions {
+  to: string;
+  confirmationToken: string;
+  username: string;
 }
 
 const sendEmail = async (options: EmailOptions): Promise<void> => {
@@ -50,6 +57,26 @@ const sendEmail = async (options: EmailOptions): Promise<void> => {
     }
     throw new Error(`Email could not be sent: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+};
+
+export const sendConfirmationEmail = async (options: ConfirmationEmailOptions): Promise<void> => {
+  const confirmationUrl = `${process.env.FRONTEND_URL}/confirm-email/${options.confirmationToken}`;
+
+  const emailOptions: EmailOptions = {
+    to: options.to,
+    subject: 'Confirm Your Email',
+    templateId: process.env.SENDGRID_CONFIRMATION_TEMPLATE_ID,
+    dynamicTemplateData: {
+      confirmationUrl: confirmationUrl,
+      username: options.username,
+    },
+  };
+
+  if (!emailOptions.templateId) {
+    throw new Error('SENDGRID_CONFIRMATION_TEMPLATE_ID is not set in the environment variables');
+  }
+
+  await sendEmail(emailOptions);
 };
 
 export default sendEmail;

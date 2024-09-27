@@ -23,18 +23,48 @@ type UserDocument = Document & {
 }
 
 export const signUp = async (req: Request, res: Response) => {
-    try {
-        const { username, email, password, confirmPassword } = req.body;
-        if (!username || !email || !password || !confirmPassword) {
-            return res.status(400).json({ message: 'Invalid user sign-up format. Username, email, password, and confirm password are required' });
-        }
+  try {
+      const { username, email, password, confirmPassword } = req.body;
+      if (!username || !email || !password || !confirmPassword) {
+          return res.status(400).json({ message: 'Invalid user sign-up format. Username, email, password, and confirm password are required' });
+      }
 
-        // Attempt to create the user
-        const savedUser = await Users.create(req.body);
-        console.log('NEW SIGN-UP:', savedUser);
+      // Generate email confirmation token
+      const emailConfirmationToken = crypto.randomBytes(20).toString('hex');
+      const emailConfirmationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-        res.status(201).send(savedUser);
-    } catch (error) {
+      // Add email confirmation fields to the user object
+      const userObj = {
+          ...req.body,
+          emailConfirmationToken,
+          emailConfirmationExpires,
+          isEmailConfirmed: false
+      };
+
+      // Attempt to create the user
+      const savedUser = await Users.create(userObj);
+      console.log('NEW SIGN-UP:', savedUser);
+
+      // Send confirmation email
+      await sendEmail({
+          to: email,
+          subject: 'Confirm Your Email',
+          templateId: process.env.SENDGRID_CONFIRMATION_TEMPLATE_ID,
+          dynamicTemplateData: {
+              confirmationUrl: `${process.env.FRONTEND_URL}/confirm-email/${emailConfirmationToken}`,
+              username: username
+          }
+      });
+
+      res.status(201).json({ 
+          message: 'User created successfully. Please check your email to confirm your account.',
+          user: {
+              id: savedUser._id,
+              username: savedUser.username,
+              email: savedUser.email
+          }
+      });
+  } catch (error) {
         if (error instanceof mongoose.Error.ValidationError) {
             // Handle Mongoose validation error with deep error messages
             console.error('Validation error:', error.message);
@@ -61,32 +91,61 @@ export const signUp = async (req: Request, res: Response) => {
     }
 };
 
+export const confirmEmail = async (req: Request, res: Response) => {
+  try {
+      const { token } = req.params;
+      const user = await Users.findOne({
+          emailConfirmationToken: token,
+          emailConfirmationExpires: { $gt: Date.now() }
+      });
+
+      if (!user) {
+          return res.status(400).json({ message: 'Invalid or expired confirmation token.' });
+      }
+
+      user.isEmailConfirmed = true;
+      user.emailConfirmationToken = null;
+      user.emailConfirmationExpires = null;
+      await user.save();
+
+      res.json({ message: 'Email confirmed successfully. You can now log in.' });
+  } catch (error) {
+      console.error('Error in email confirmation:', error);
+      res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 export const login = async (req: Request, res: Response) => {
-    try {
-        const { email, password } = req.body;
-        console.log(req.body)
+  try {
+      const { email, password } = req.body;
+      console.log(req.body)
 
-        console.log(`Login attempt for email: ${email}`);
+      console.log(`Login attempt for email: ${email}`);
 
-        if (!email || !password) {
-            console.log('Login failed: Missing email or password');
-            return res.status(400).json({ errors: { email: 'Email is required', password: 'Password is required' } });
-        }
+      if (!email || !password) {
+          console.log('Login failed: Missing email or password');
+          return res.status(400).json({ errors: { email: 'Email is required', password: 'Password is required' } });
+      }
 
-        const foundUser = await Users.findOne({ email });
-        if (!foundUser) {
-            console.log(`Login failed: User not found for email ${email}`);
-            return res.status(401).json({ errors: { email: 'User not found. Please check your email.' } });
-        }
+      const foundUser = await Users.findOne({ email });
+      if (!foundUser) {
+          console.log(`Login failed: User not found for email ${email}`);
+          return res.status(401).json({ errors: { email: 'User not found. Please check your email.' } });
+      }
 
-        console.log(`User found for email ${email}. Validating password...`);
-        const isValidPassword = validatePassword(password, foundUser.password);
-        console.log(`Password validation result: ${isValidPassword}`);
+      if (!foundUser.isEmailConfirmed) {
+          console.log(`Login failed: Email not confirmed for ${email}`);
+          return res.status(401).json({ errors: { email: 'Please confirm your email before logging in.' } });
+      }
 
-        if (!isValidPassword) {
-            console.log(`Login failed: Incorrect password for email ${email}`);
-            return res.status(401).json({ errors: { password: 'Incorrect password.' } });
-        }
+      console.log(`User found for email ${email}. Validating password...`);
+      const isValidPassword = validatePassword(password, foundUser.password);
+      console.log(`Password validation result: ${isValidPassword}`);
+
+      if (!isValidPassword) {
+          console.log(`Login failed: Incorrect password for email ${email}`);
+          return res.status(401).json({ errors: { password: 'Incorrect password.' } });
+      }
 
         // ! Assign a token
         if (!process.env.JWT_SECRET) {

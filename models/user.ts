@@ -12,6 +12,9 @@ interface IUser {
   favourites: mongoose.Types.ObjectId[];
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  isEmailConfirmed: boolean;
+  emailConfirmationToken?: string | null;
+  emailConfirmationExpires?: Date | null;
 }
 
 const usersSchema: Schema<IUser> = new mongoose.Schema<IUser>({
@@ -37,6 +40,9 @@ const usersSchema: Schema<IUser> = new mongoose.Schema<IUser>({
   favourites: [{ type: Schema.Types.ObjectId, ref: 'Release' }],
   resetPasswordToken: String,
   resetPasswordExpires: Date,
+  isEmailConfirmed: { type: Boolean, default: false },
+  emailConfirmationToken: String,
+  emailConfirmationExpires: Date,
 }, {
   timestamps: true,
   toJSON: {
