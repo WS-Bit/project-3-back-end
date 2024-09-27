@@ -64,10 +64,6 @@ export const signUp = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
-        const testPassword = 'TestPassword123!';
-        const testHash = '$2b$10$6eVQL2KSRRvRJ7T.4DKLSe6r3NOd3iFoqObf8VIQhJTLVPX5qGy1W'; // Hash of 'TestPassword123!'
-
-        console.log('Test bcrypt comparison:', bcrypt.compareSync(testPassword, testHash));
 
         console.log(`Login attempt for email: ${email}`);
 
