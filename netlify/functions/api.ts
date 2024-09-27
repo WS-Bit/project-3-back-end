@@ -8,7 +8,22 @@ dotenv.config();
 
 const app = express();
 
-app.use(express.json());
+// Add this middleware to handle raw body
+app.use(express.raw({ type: 'application/json' }));
+
+// Add this middleware to parse the raw body
+app.use((req, res, next) => {
+  if (req.headers['content-type'] === 'application/json') {
+    try {
+      req.body = JSON.parse(req.body.toString());
+    } catch (error) {
+      console.error('Error parsing JSON:', error);
+      return res.status(400).json({ error: 'Invalid JSON' });
+    }
+  }
+  next();
+});
+
 app.use(cors())
 app.use('/api', router);
 
