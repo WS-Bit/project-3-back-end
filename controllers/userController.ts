@@ -64,6 +64,7 @@ export const signUp = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
+        console.log(req.body, req)
 
         console.log(`Login attempt for email: ${email}`);
 

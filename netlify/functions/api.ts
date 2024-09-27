@@ -8,8 +8,8 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors())
 app.use(express.json());
+app.use(cors())
 app.use('/api', router);
 
 // Start the server
@@ -22,6 +22,6 @@ async function start() {
   }
 }
 
-export const handler = serverless(app)
-
 start();
+
+export const handler = serverless(app)
